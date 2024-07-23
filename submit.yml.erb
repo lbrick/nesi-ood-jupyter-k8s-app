@@ -8,7 +8,7 @@
 
    user = OodSupport::User.new
 
-   ood_nfs_server = Resolv.getaddress("ood-dev-nfs-node")
+   ood_nfs_server = Resolv.getaddress("nfs")
    software_nfs_server = Resolv.getaddress("external-nfs")
 %>
 ---
@@ -18,11 +18,13 @@ script:
   native:
     container:
       name: "ml101"
-      image: "kandnesi/ood-jupyter-k8s:v0.2"
+      image: "ghcr.io/lbrick/nesi-ood-jupyter-k8s-app/nesi-ood-jupyter-k8s-app:v0.2"
       command: ["/bin/bash","-l","<%= staged_root %>/job_script_content.sh"]
       working_dir: "<%= Etc.getpwnam(ENV['USER']).dir %>"
       restart_policy: 'OnFailure'
       env:
+        PERIOD_SECONDS: "10"
+        OPTIONS: -k <%= user.name %>@KAHU-DEV.FLEXI.NZ
         NB_UID: "<%= user.uid %>"
         NB_USER: "<%= user.name %>"
         NB_GID: "<%= user.group.id %>"
@@ -34,6 +36,9 @@ script:
       cpu: "<%= cpu %>"
       memory: "<%= memory %>Gi"
     mounts:
+      - type: emptydir
+        name: ccache
+        path: /dev/shm
       - type: nfs
         name: home
         host: <%= ood_nfs_server %>
@@ -44,11 +49,6 @@ script:
         host: <%= software_nfs_server %>
         path: /mnt/data-migration
         destination_path: /opt/nesi
-      - type: host
-        name: nslcd-socket
-        host_type: Socket
-        path: /var/run/nslcd/socket
-        destination_path: /var/run/nslcd/socket
       - type: host
         name: nsswitch-conf
         host_type: File
